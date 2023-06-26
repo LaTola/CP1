@@ -1,0 +1,31 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.7
+    commands:
+      - "pipelines/PIPELINE-FULL-STAGING/setup.sh"
+  pre_build:
+    commands:
+      - "pipelines/PIPELINE-FULL-STAGING/static_test.sh"
+      - "pipelines/PIPELINE-FULL-STAGING/unit_test.sh"
+  build:
+    commands:
+      - "pipelines/common-steps/build.sh"
+  post_build:
+    commands: 
+      #- pipelines/common-steps/deploy.sh
+      - which sam
+      - sam deploy --template-file template.yaml --config-file samconfig.toml --config-env $ENVIRONMENT --no-confirm-changeset --force-upload --no-fail-on-empty-changeset --no-progressbar
+      - export BASE_URL=aws cloudformation describe-stacks --stack-name todo-list-aws-staging --query 'Stacks[0].Outputs[?OutputKey==`BaseUrlApi`].OutputValue' --region us-east-1 --output text"
+      - echo "BASE_URL = ${BASE_URL}"
+      - echo 'Initiating Integration Tests'
+      - pipelines/common-steps/integration.sh ${BASE_URL}
+
+reports:
+  coverage_reports:
+    files:
+      - "coverage.xml"
+    file-format: "COBERTURAXML"
+
